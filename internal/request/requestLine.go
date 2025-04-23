@@ -1,6 +1,7 @@
 package request
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strings"
@@ -9,45 +10,47 @@ import (
 type RequestLine struct {
 	Version string
 	Method  string
-	Url     string
+	Target  string
 }
 
 // VXP/1.0 METHOD URL
-func (rq *RequestLine) ParseRequestLine(data []byte) (parsed int, requestLine RequestLine, err error) {
-	s := strings.TrimSpace(string(data))
-	dat := strings.Split(s, " ")
-	if len(dat) != 3 {
-		fmt.Printf("Malformed Request Line With lenght: %v\n", len(dat))
-		return 0, RequestLine{}, errors.New("Data is malformed: Length")
 
+func ParseRequestLine(data []byte) (*RequestLine, int, error) {
+	idx := bytes.Index(data, []byte("\r\n"))
+	if idx == -1 {
+		return &RequestLine{}, 0, nil
+	}
+	s := data[:idx]
+	stringDat := string(s)
+	fmt.Printf("Data string: %s", stringDat)
+	requestSplit := strings.Split(stringDat, " ")
+	if len(requestSplit) != 3 {
+		return nil, 0, errors.New("Malformed format")
+	}
+	reqMethod := strings.TrimSpace(requestSplit[1])
+	reqTarget := requestSplit[2]
+	reqVersion := requestSplit[0]
+	fmt.Printf("Version: %s\n Method: %s\n Target: %s\n", reqVersion, reqMethod, reqTarget)
+	versionNum := strings.Split(reqVersion, "/")
+	if versionNum[1] != "1.0" {
+		return &RequestLine{}, 0, errors.New("Version is not 1.1")
 	}
 
-	version := dat[0]
-	versCheck := strings.Split(version, "/")
-	if versCheck[0] != "VXP" {
-		return 0, RequestLine{}, fmt.Errorf("Version header is malformed\n Wanted VXP Got: %s\n", versCheck[0])
-
-	}
-	if len(versCheck) != 2 || versCheck[0] != "VXP" || versCheck[1] != "1.0" {
-		return 0, RequestLine{}, fmt.Errorf("invalid version format: got %s", version)
-	}
-
-	rq.Version = version
-	rq.Method = dat[1]
-	rq.Url = dat[2]
-	requestLine = *rq
-
-	valid := []string{"PING", "CAST", "OBTAIN", "VALID", "OMIT", "BYE"}
-	var v bool
-	for _, val := range valid {
-		if rq.Method == val {
-			v = true
+	validMethods := []string{"PING", "CAST", "OBTAIN", "VALID", "OMIT", "BYE"}
+	valid := false
+	for _, v := range validMethods {
+		if reqMethod == v {
+			valid = true
+			break
 		}
 	}
-	if !v {
-		fmt.Println("Request Method doesn't exist")
-		return 0, RequestLine{}, errors.New("Invalid Req Method")
-	}
-	return len(data), requestLine, nil
+	if !valid {
+		return &RequestLine{}, 0, errors.New("Method is invalid")
 
+	}
+
+	return &RequestLine{
+		Version: reqVersion,
+		Target:  reqTarget,
+		Method:  reqMethod}, idx + 2, nil
 }

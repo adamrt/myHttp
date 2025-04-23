@@ -11,58 +11,58 @@ import (
 
 func TestRequestLine(t *testing.T) {
 	// TEST: Valid Request Line
-	rq := RequestLine{}
+	rq := &RequestLine{}
 	reader := &chunkReader{
-		data:            "VXP/1.0 OBTAIN www.google.com",
+		data:            "VXP/1.0 OBTAIN www.google.com\r\n",
 		numBytesPerRead: 10,
 	}
-	r, rq, err := rq.ParseRequestLine([]byte(reader.data))
+	rq, r, err := ParseRequestLine([]byte(reader.data))
 	require.NoError(t, err)
 	require.NotNil(t, r)
 	assert.Equal(t, "VXP/1.0", rq.Version)
 	assert.Equal(t, "OBTAIN", rq.Method)
-	assert.Equal(t, "www.google.com", rq.Url)
+	assert.Equal(t, "www.google.com", rq.Target)
 
 	// TEST: Valid Request Line
-	rq = RequestLine{}
+	rq = &RequestLine{}
 	reader = &chunkReader{
-		data:            "VXP/1.0 BYE localhost:42069",
+		data:            "VXP/1.0 BYE localhost:42069\r\n",
 		numBytesPerRead: 10,
 	}
-	r, rq, err = rq.ParseRequestLine([]byte(reader.data))
+	rq, r, err = ParseRequestLine([]byte(reader.data))
 	require.NoError(t, err)
 	require.NotNil(t, r)
 	assert.Equal(t, "VXP/1.0", rq.Version)
 	assert.Equal(t, "BYE", rq.Method)
-	assert.Equal(t, "localhost:42069", rq.Url)
+	assert.Equal(t, "localhost:42069", rq.Target)
 
 	// TEST: Invalid Method
-	rq = RequestLine{}
+	rq = &RequestLine{}
 	reader = &chunkReader{
-		data:            "VXP/1.0 GET localhost:42069",
+		data:            "VXP/1.0 GET localhost:42069\r\n",
 		numBytesPerRead: 10,
 	}
-	r, rq, err = rq.ParseRequestLine([]byte(reader.data))
+	rq, r, err = ParseRequestLine([]byte(reader.data))
 	fmt.Printf("Request line should fail %s", rq.Method)
 	require.Error(t, err)
 
 	// TEST: Invalid Version
-	rq = RequestLine{}
+	rq = &RequestLine{}
 	reader = &chunkReader{
-		data:            "VXP/1.1 GET localhost:42069",
+		data:            "VXP/1.1 GET localhost:42069\r\n",
 		numBytesPerRead: 10,
 	}
-	r, rq, err = rq.ParseRequestLine([]byte(reader.data))
+	rq, r, err = ParseRequestLine([]byte(reader.data))
 	require.Error(t, err)
 	require.NotNil(t, r)
 
 	// TEST: Invalid Length
-	rq = RequestLine{}
+	rq = &RequestLine{}
 	reader = &chunkReader{
-		data:            "VXP/1.0 GET localhost:42069 more data",
+		data:            "VXP/1.0 GET localhost:42069 more data\r\n",
 		numBytesPerRead: 10,
 	}
-	r, rq, err = rq.ParseRequestLine([]byte(reader.data))
+	rq, r, err = ParseRequestLine([]byte(reader.data))
 	require.Error(t, err)
 	require.NotNil(t, r)
 

@@ -30,8 +30,7 @@ type headerId int
 type StateId int
 
 const (
-	StateName StateId = iota
-	STATE_REQLINE
+	STATE_INIT StateId = iota
 	STATE_HEADERS
 	STATE_BODY
 	STATE_DONE

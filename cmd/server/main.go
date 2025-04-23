@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"net"
 
@@ -26,35 +25,11 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		handleConn(conn)
-	}
-}
-
-func handleConn(conn net.Conn) {
-
-	fmt.Printf("Connection accepted at: %s\n", conn.RemoteAddr().String())
-	rq := request.RequestLine{}
-	buf := make([]byte, 4096)
-	readFromIdx := 0
-	for {
-
-		n, err := conn.Read(buf[readFromIdx:])
-		if err != nil {
-			if err == io.EOF {
-				conn.Close()
-				return
+		go func(c net.Conn) {
+			_, err = request.HandleConn(c)
+			if err != nil {
+				log.Fatal(err)
 			}
-			log.Fatal(err)
-		}
-
-		readFromIdx += n
-		_, req, err := rq.ParseRequestLine(buf[:readFromIdx])
-		if err != nil {
-			log.Println(err)
-		}
-		fmt.Println(req)
-
+		}(conn)
 	}
-
 }
