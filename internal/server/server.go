@@ -18,9 +18,9 @@ func NewServer() *Server {
 		Handler: handler.NewHandler()}
 }
 
-var port = "8000"
+var proxy = "9000"
 
-func Start() {
+func StartServer(port string) {
 	s := NewServer()
 	listener, err := net.Listen("tcp", ":"+port)
 	if err != nil {
