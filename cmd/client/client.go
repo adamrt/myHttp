@@ -11,7 +11,7 @@ func main() {
 
 	t := time.Now()
 	var wg sync.WaitGroup
-	concurrentClients := 10000
+	concurrentClients := 60000
 	for i := 0; i < concurrentClients; i++ {
 		wg.Add(1)
 		go func(id int) {
@@ -23,7 +23,7 @@ func main() {
 			}
 			defer conn.Close()
 
-			req := "VXP/1.0 PING localhost\r\nbody: 1\r\n\r\n1"
+			req := "GET / HTTP/1.1\r\nbody: 1\r\n\r\n1"
 			_, err = conn.Write([]byte(req))
 			if err != nil {
 				fmt.Printf("Client %d: Write error: %v\n", id, err)

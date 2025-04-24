@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🔒 Hackery Server</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Courier+Prime&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Courier Prime', monospace;
+      background-color: #0a0a0a;
+      color: #33FF00;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .header {
+      margin-bottom: 2rem;
+      animation: fadeIn 1.5s ease-out;
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      color: #00ffcc;
+      text-shadow: 0 0 8px #00ffcc;
+      margin-bottom: 0.5rem;
+    }
+
+    .header p {
+      font-size: 1.2rem;
+      color: #b3fff5;
+      opacity: 0.85;
+    }
+
+    .terminal {
+      background-color: #000;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 0 25px rgba(0, 255, 0, 0.6);
+      width: 100%;
+      max-width: 800px;
+      min-height: 300px;
+    }
+
+    .typed-text {
+      display: inline;
+      border-right: 2px solid #33FF00;
+      padding-right: 10px;
+      white-space: nowrap;
+    }
+
+    .line {
+      margin-top: 1rem;
+    }
+
+    .hidden {
+      visibility: hidden;
+    }
+
+    .cursor {
+      animation: blink 0.75s step-end infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { border-color: transparent; }
+      50% { border-color: #33FF00; }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Henry's Server Terminal</h1>
+    <p>Accessing secure environment...</p>
+  </div>
+
+  <div class="terminal">
+    <div class="line">
+      <span class="typed-text" id="typed-text"></span>
+    </div>
+    <div class="line hidden" id="line1"><span class="typed-text"></span></div>
+    <div class="line hidden" id="line2"><span class="typed-text"></span></div>
+    <div class="line hidden" id="line3"><span class="typed-text"></span></div>
+    <div class="line hidden" id="line4"><span class="typed-text"></span></div>
+  </div>
+
+  <script>
+    function typeWriter(elementId, text, speed, callback) {
+      let i = 0;
+      const el = document.getElementById(elementId).querySelector(".typed-text") || document.getElementById(elementId);
+      function type() {
+        if (i < text.length) {
+          el.textContent += text.charAt(i++);
+          setTimeout(type, speed);
+        } else {
+          callback && callback();
+        }
+      }
+      type();
+    }
+
+    typeWriter("typed-text", "Welcome to Henry's Server", 40, function () {
+      document.getElementById("line1").classList.remove("hidden");
+      typeWriter("line1", "-rw-r--r--  1 henry  staff  4096 Apr 23 20:21 server", 50, function () {
+        document.getElementById("line2").classList.remove("hidden");
+        typeWriter("line2", "$ Access granted: Full permissions 🔓", 50, function () {
+          document.getElementById("line3").classList.remove("hidden");
+          typeWriter("line3", "$ Initializing...", 50, function () {
+            document.getElementById("line4").classList.remove("hidden");
+            typeWriter("line4", "$ Server is live 🚀", 50, function () {
+              const cursor = document.createElement("span");
+              cursor.classList.add("cursor");
+              document.getElementById("line4").appendChild(cursor);
+            });
+          });
+        });
+      });
+    });
+  </script>
+</body>
+</html>

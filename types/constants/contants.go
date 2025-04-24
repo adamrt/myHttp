@@ -35,3 +35,5 @@ const (
 	STATE_BODY
 	STATE_DONE
 )
+
+//HTTP respone

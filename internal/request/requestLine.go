@@ -4,17 +4,66 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
+
+	"github.com/hconn7/vxp/internal/headers"
 )
 
 type RequestLine struct {
-	Version string
-	Method  string
-	Target  string
+	HttpVersion   string
+	RequestTarget string
+	Method        string
 }
 
-// VXP/1.0 METHOD URL
+const (
+	StateInit = iota
+	StateHeaders
+	StateBody
+	StateDone
+)
 
+type requestState int
+
+func RequestFromReader(reader io.Reader) (*Request, error) {
+
+	buf := make([]byte, 8)
+	readToIndex := 0
+
+	req := Request{
+		State:   StateInit,
+		Headers: headers.NewHeaders(),
+	}
+
+	for req.State != StateDone {
+		if readToIndex == len(buf) {
+			newBuf := make([]byte, len(buf)*2)
+			copy(newBuf, buf)
+			buf = newBuf
+		}
+
+		n, err := reader.Read(buf[readToIndex:])
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				if req.State != StateDone {
+					return nil, errors.New("state not done")
+				}
+
+			}
+			return &Request{}, err
+		}
+		readToIndex += n
+		parsed, err := req.parse(buf[:readToIndex])
+		if err != nil {
+			return &Request{}, err
+		}
+		if parsed > 0 {
+			copy(buf, buf[parsed:readToIndex])
+			readToIndex -= parsed
+		}
+	}
+	return &req, nil
+}
 func ParseRequestLine(data []byte) (*RequestLine, int, error) {
 	idx := bytes.Index(data, []byte("\r\n"))
 	if idx == -1 {
@@ -22,21 +71,20 @@ func ParseRequestLine(data []byte) (*RequestLine, int, error) {
 	}
 	s := data[:idx]
 	stringDat := string(s)
-	fmt.Printf("Data string: %s", stringDat)
+
 	requestSplit := strings.Split(stringDat, " ")
 	if len(requestSplit) != 3 {
 		return nil, 0, errors.New("Malformed format")
 	}
-	reqMethod := strings.TrimSpace(requestSplit[1])
-	reqTarget := requestSplit[2]
-	reqVersion := requestSplit[0]
-	fmt.Printf("Version: %s\n Method: %s\n Target: %s\n", reqVersion, reqMethod, reqTarget)
+	reqMethod := strings.TrimSpace(requestSplit[0])
+	reqTarget := requestSplit[1]
+	reqVersion := requestSplit[2]
+
 	versionNum := strings.Split(reqVersion, "/")
-	if versionNum[1] != "1.0" {
+	if versionNum[1] != "1.1" {
 		return &RequestLine{}, 0, errors.New("Version is not 1.1")
 	}
-
-	validMethods := []string{"PING", "CAST", "OBTAIN", "VALID", "OMIT", "BYE"}
+	validMethods := []string{"GET", "POST", "PUT", "DELETE"}
 	valid := false
 	for _, v := range validMethods {
 		if reqMethod == v {
@@ -45,12 +93,13 @@ func ParseRequestLine(data []byte) (*RequestLine, int, error) {
 		}
 	}
 	if !valid {
-		return &RequestLine{}, 0, errors.New("Method is invalid")
+		return &RequestLine{}, 0, fmt.Errorf("Method is invalid: %s", reqMethod)
 
 	}
 
 	return &RequestLine{
-		Version: reqVersion,
-		Target:  reqTarget,
-		Method:  reqMethod}, idx + 2, nil
+		HttpVersion:   versionNum[1],
+		RequestTarget: reqTarget,
+		Method:        reqMethod}, idx + 2, nil
+
 }

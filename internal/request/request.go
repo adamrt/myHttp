@@ -21,7 +21,6 @@ type Request struct {
 func (r *Request) ParseState(data []byte) (int, error) {
 	switch r.State {
 	case constants.STATE_INIT:
-		fmt.Println("Req Line Init")
 		reqLine, n, err := ParseRequestLine(data)
 		if err != nil {
 			fmt.Println(err)
@@ -34,7 +33,6 @@ func (r *Request) ParseState(data []byte) (int, error) {
 		r.State = constants.STATE_HEADERS
 		return n, nil
 	case constants.STATE_HEADERS:
-		fmt.Println("Headers Init")
 		n, done, err := r.Headers.ParseHeaders(data)
 		if err != nil {
 			return 0, err
@@ -44,23 +42,23 @@ func (r *Request) ParseState(data []byte) (int, error) {
 		}
 		return n, nil
 	case constants.STATE_BODY:
-		fmt.Println("Body Init")
-		body, ok := r.Headers.Get("body")
+		contentLenStr, ok := r.Headers.Get("Content-Length")
 		if !ok {
-			r.State = constants.STATE_DONE
+			r.State = StateDone
 			return len(data), nil
 		}
-		contentLength, err := strconv.Atoi(body)
+		contentLen, err := strconv.Atoi(contentLenStr)
 		if err != nil {
-			return 0, fmt.Errorf("Malformed Body info: %s", err)
+			return 0, fmt.Errorf("malformed Content-Length: %s", err)
 		}
-		n := len(data)
 		r.Body = append(r.Body, data...)
-		r.BodyLengthRead += n
-		if r.BodyLengthRead >= contentLength {
-			r.State = constants.STATE_DONE
+		r.BodyLengthRead += len(data)
+		if r.BodyLengthRead > contentLen {
+			return 0, fmt.Errorf("Content-Length too large")
 		}
-		fmt.Printf("Body: %s", r.Body)
+		if r.BodyLengthRead == contentLen {
+			r.State = StateDone
+		}
 		return len(data), nil
 
 	}
@@ -121,5 +119,6 @@ func HandleConn(reader io.Reader) (*Request, error) {
 			readToIndex -= parsed
 		}
 	}
+	// TODO: Insert a router method to grab request line
 	return &req, nil
 }
