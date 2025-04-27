@@ -1,25 +1,30 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net"
+	"strings"
 	"sync"
 )
 
 type Proxy struct {
 	ServerClients map[string]int
-	mu            sync.Mutex
+	mu            sync.RWMutex
 }
+
+var proxy = "9000"
 
 func ProxyServer() {
 	p := NewProxy()
+	p.ProxyInitMap()
 	listener, err := net.Listen("tcp", ":"+proxy)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("Server running on Port: %s\n", proxy)
+	fmt.Printf("Proxy Server running on Port: %s\n", proxy)
 
 	defer listener.Close()
 	for {
@@ -30,7 +35,7 @@ func ProxyServer() {
 		}
 		go func(c net.Conn) {
 			defer c.Close()
-			p.ProxyHandleConn(c)
+			p.handleConn(c)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -52,42 +57,74 @@ func (p *Proxy) ProxyInitMap() {
 	p.ServerClients["8002"] = 0
 }
 
-func (p *Proxy) ProxyHandleConn(conn net.Conn) {
-	lowest := p.LowestClients()
+type CopyJob struct {
+	dst net.Conn
+	src net.Conn
+}
 
-	serverAddr := "localhost:" + lowest // Adjust this to use your actual backend server addresses
-	backendConn, err := net.Dial("tcp", serverAddr)
+func (p *Proxy) handleConn(clientConn net.Conn) {
+	defer clientConn.Close()
+
+	targetAddr := p.LowestClients()
+
+	p.mu.Lock()
+	clientCount := p.ServerClients[targetAddr]
+	p.mu.Unlock()
+
+	backendConn, err := net.Dial("tcp", "localhost:"+targetAddr)
 	if err != nil {
-		log.Printf("Failed to connect to backend server %s: %v", lowest, err)
-		conn.Close()
+		log.Println("backend connection failed:", err)
 		return
 	}
+	defer backendConn.Close()
 
-	// Step 3: Forward data between client and backend server
-	go p.forwardData(conn, backendConn) // Forward from client to server
-	go p.forwardData(backendConn, conn) // Forward from server to client
+	fmt.Printf("Sending to Server at port: %s with %v Clients connected\n", targetAddr, clientCount)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		if _, err := io.Copy(backendConn, clientConn); err != nil {
+			log.Println("Error copying client to backend:", err)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		if _, err := io.Copy(clientConn, backendConn); err != nil {
+			if !errors.Is(err, net.ErrClosed) && !strings.Contains(err.Error(), "use of closed network connection") {
+				log.Println("Error copying backend to client:", err)
+			}
+		}
+	}()
+
+	wg.Wait()
 }
 
-func (p *Proxy) forwardData(src, dest net.Conn) {
-	// Step 4: Copy data from src to dest
-	_, err := io.Copy(dest, src)
-	if err != nil {
-		log.Printf("Error forwarding data: %v", err)
+func copyBuffer(dest, src net.Conn, data []byte) error {
+	if _, err := io.CopyBuffer(dest, src, data); err != nil {
+		return errors.New("Error copying buffer")
 	}
+	return nil
 
-	// Step 5: Close connections when done
-	src.Close()
-	dest.Close()
 }
-
 func (p *Proxy) LowestClients() string {
 	lowest := ""
 	lowestCount := int(^uint(0) >> 1)
+	p.mu.RLock()
 	for port, clientCount := range p.ServerClients {
 		if clientCount < lowestCount {
 			lowestCount = clientCount
 			lowest = port
+
 		}
 	}
+	p.mu.RUnlock()
+
+	p.mu.Lock()
+	p.ServerClients[lowest]++
+	p.mu.Unlock()
+
 	return lowest
 }
