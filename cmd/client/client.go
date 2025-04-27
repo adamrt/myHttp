@@ -11,12 +11,12 @@ func main() {
 
 	t := time.Now()
 	var wg sync.WaitGroup
-	concurrentClients := 60000
+	concurrentClients := 100000
 	for i := 0; i < concurrentClients; i++ {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			conn, err := net.Dial("tcp", "localhost:8000")
+			conn, err := net.Dial("tcp", "localhost:9000")
 			if err != nil {
 				fmt.Printf("Client %d: Error connecting: %v\n", id, err)
 				return
