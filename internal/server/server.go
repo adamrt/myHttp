@@ -42,7 +42,7 @@ func StartServer(port string) {
 
 			handler, err := s.Handler.Router.Handle(req.RequestLine.Method, req.RequestLine.RequestTarget)
 			if err != nil {
-				fmt.Println(err)
+				log.Fatal(err)
 			}
 			handler(c, req)
 
